@@ -5,8 +5,17 @@ description = "Basic async example project"
 readme = "README.md"
 requires-python = ">=3.13"
 dependencies = [
+    "fastapi[standard]>=0.115.8",
+    "gel>=3.0.0",
     "gel-auth-fastapi",
+    "httpx>=0.28.1",
+    "uvicorn>=0.34.0",
 ]
 
 [tool.uv.sources]
 gel-auth-fastapi = { path = "../../" }
+
+[dependency-groups]
+dev = [
+    "mypy>=1.15.0",
+]
