@@ -1,20 +1,18 @@
 from __future__ import annotations
 
-import edgedb
 import datetime
-
 from http import HTTPStatus
-from typing import List
-from fastapi import APIRouter, HTTPException, Query
+
+import gel
+from fastapi import APIRouter, HTTPException
+from gel_auth_fastapi import SessionDep
 from pydantic import BaseModel
 
 from .queries import (
     create_event_async_edgeql as create_event_qry,
 )
 
-
 router = APIRouter()
-client = edgedb.create_async_client()
 
 
 class RequestData(BaseModel):
@@ -25,7 +23,10 @@ class RequestData(BaseModel):
 
 
 @router.post("/events", status_code=HTTPStatus.CREATED)
-async def post_event(event: RequestData) -> create_event_qry.CreateEventResult:
+async def post_event(
+    event: RequestData, session: SessionDep
+) -> create_event_qry.CreateEventResult:
+    client = session.client
     try:
         created_event = await create_event_qry.create_event(
             client,
@@ -34,13 +35,13 @@ async def post_event(event: RequestData) -> create_event_qry.CreateEventResult:
             schedule=event.schedule,
             host_name=event.host_name,
         )
-    except edgedb.errors.InvalidValueError as ex:
+    except gel.errors.InvalidValueError as ex:
         raise HTTPException(
             status_code=HTTPStatus.BAD_REQUEST,
             detail={"error": str(ex)},
         )
 
-    except edgedb.errors.ConstraintViolationError:
+    except gel.errors.ConstraintViolationError:
         raise HTTPException(
             status_code=HTTPStatus.BAD_REQUEST,
             detail={"error": "Event '{event.name}' already exists"},

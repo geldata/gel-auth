@@ -1,7 +1,7 @@
 # Basic Async Example
 
 ```console
-$ uv run main.py
+$ uv run uvicorn app.main:fast_api
 ```
 
 ## Development

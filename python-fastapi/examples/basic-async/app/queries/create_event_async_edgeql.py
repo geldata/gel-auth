@@ -30,7 +30,7 @@ class NoPydanticValidation:
 
 @dataclasses.dataclass
 class CreateEventResult(NoPydanticValidation):
-    host: CreateEventResultHost | None
+    host: CreateEventResultHost
     schedule: datetime.datetime | None
     name: Str50
     address: str | None

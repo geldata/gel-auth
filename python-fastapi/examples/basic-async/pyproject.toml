@@ -6,9 +6,9 @@ readme = "README.md"
 requires-python = ">=3.13"
 dependencies = [
     "fastapi[standard]>=0.115.8",
-    "gel>=3.0.0",
+    "fasthx[htmy]>=2.2.1",
     "gel-auth-fastapi",
-    "httpx>=0.28.1",
+    "htmy>=0.5.0",
     "uvicorn>=0.34.0",
 ]
 

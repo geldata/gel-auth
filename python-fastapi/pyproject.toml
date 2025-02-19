@@ -7,11 +7,18 @@ authors = [
     { name = "Gel Data Inc.", email = "hello@geldata.com" }
 ]
 requires-python = ">=3.9"
-dependencies = []
+dependencies = [
+    "fastapi>=0.115",
+    "gel[auth]",
+    "pyjwt>=2.10",
+]
 
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
+
+[tool.uv.sources]
+gel = { git = "https://github.com/geldata/gel-python", branch = "auth" }
 
 [dependency-groups]
 dev = [
