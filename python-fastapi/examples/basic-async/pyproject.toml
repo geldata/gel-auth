@@ -4,6 +4,7 @@ version = "0.1.0"
 description = "Basic async example project"
 readme = "README.md"
 requires-python = ">=3.13"
+classifiers = ["Private :: Do Not Upload"]
 dependencies = [
     "gel-auth-fastapi",
 ]
