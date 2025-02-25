@@ -1,6 +1,5 @@
 [project]
 name = "gel-auth-fastapi"
-version = "0.1.0"
 description = "Gel auth extension binding for FastAPI"
 readme = "README.md"
 authors = [
@@ -8,6 +7,7 @@ authors = [
 ]
 requires-python = ">=3.9"
 dependencies = []
+dynamic = ["version"]
 
 [build-system]
 requires = ["hatchling"]
@@ -39,3 +39,14 @@ indent-width = 4
 [tool.black]
 line-length = 80
 target-version = ["py39", "py310", "py311", "py312", "py313"]
+
+[tool.hatch.version]
+path = "src/gel_auth_fastapi/_version.py"
+
+[tool.hatch.build.targets.sdist]
+exclude = [
+    "/examples",
+]
+
+[tool.hatch.build.targets.sdist.force-include]
+"../LICENSE" = "LICENSE"

@@ -1,0 +1,158 @@
+name: Release FastAPI bindings
+
+on:
+  workflow_dispatch:
+    inputs: {}
+  pull_request:
+    branches:
+      - main
+    paths:
+      - "python-fastapi/src/gel_auth_fastapi/_version.py"
+
+jobs:
+  validate-release-request:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.checkver.outputs.version }}
+    steps:
+      - name: Validate release PR
+        uses: edgedb/action-release/validate-pr@master
+        id: checkver
+        with:
+          github_token: ${{ secrets.RELEASE_BOT_GITHUB_TOKEN }}
+          require_team: Release Managers
+          require_approval: no
+          version_file: python-fastapi/src/gel_auth_fastapi/_version.py
+          version_line_pattern: |
+            __version__\s*=\s*(?:['"])([[:PEP440:]])(?:['"])
+
+      - name: Stop if not approved
+        if: steps.checkver.outputs.approved != 'true'
+        run: |
+          echo ::error::PR is not approved yet.
+          exit 1
+
+      - name: Store release version for later use
+        env:
+          VERSION: ${{ steps.checkver.outputs.version }}
+        run: |
+          mkdir -p dist/
+          echo "${VERSION}" > dist/VERSION
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dist
+          path: dist/
+
+  build:
+    runs-on: ubuntu-latest
+    needs: validate-release-request
+    defaults:
+      run:
+        working-directory: python-fastapi
+    steps:
+      - uses: actions/checkout@v4
+        
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          version: "0.6.2"
+
+      - name: Build
+        run: uv build
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dist
+          path: python-fastapi/dist/*
+
+  test:
+    runs-on: ubuntu-latest
+    needs: build
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version:
+          - "3.9"
+          - "3.10"
+          - "3.11"
+          - "3.12"
+          - "3.13"
+    steps:
+      - name: Install uv and set the python version
+        uses: astral-sh/setup-uv@v5
+        with:
+          version: "0.6.2"
+          python-version: ${{ matrix.python-version }}
+
+      - name: Download artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: dist
+
+      - name: Install and prepare test source files
+        run: |
+          uv pip install gel_auth_fastapi*.whl
+          tar xvf gel_auth_fastapi*.tar.*
+          mv gel_auth_fastapi-*/tests .
+          rm -rf gel_auth_fastapi-*
+
+      - name: Run tests
+        run: |
+          cd tests
+          uv run python -m unittest -v
+
+  release:
+    runs-on: ubuntu-latest
+    needs: test
+    environment:
+      name: pypi
+      url: https://pypi.org/p/gel-auth-fastapi
+    permissions:
+      id-token: write
+      attestations: write
+      contents: write
+      deployments: write
+    steps:
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          version: "0.6.2"
+
+      - name: Download artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: dist
+          path: dist
+
+      - name: Extract Release Version
+        id: relver
+        run: |
+          set -e
+          echo ::set-output name=version::$(cat dist/VERSION)
+          rm dist/VERSION
+
+      - name: Merge and tag the PR
+        uses: edgedb/action-release/merge@master
+        with:
+          github_token: ${{ secrets.RELEASE_BOT_GITHUB_TOKEN }}
+          ssh_key: ${{ secrets.RELEASE_BOT_SSH_KEY }}
+          gpg_key: ${{ secrets.RELEASE_BOT_GPG_KEY }}
+          gpg_key_id: "5C468778062D87BF!"
+          tag_name: v${{ steps.relver.outputs.version }}
+
+      - name: Publish Github Release
+        uses: elprans/gh-action-create-release@master
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: v${{ steps.relver.outputs.version }}
+          release_name: v${{ steps.relver.outputs.version }}
+          target: ${{ github.event.pull_request.base.ref }}
+          body: ${{ github.event.pull_request.body }}
+          draft: true
+
+      - name: Publish
+        run: |
+          ls dist
+          uv publish

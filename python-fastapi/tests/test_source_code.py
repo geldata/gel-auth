@@ -31,7 +31,7 @@ class TestSourceCode(unittest.TestCase):
         root_path = find_root_path()
         config_path = root_path / "pyproject.toml"
         if not config_path.exists():
-            raise RuntimeError("could not locate pyproject.toml file")
+            raise unittest.SkipTest("could not locate pyproject.toml file")
 
         try:
             import mypy  # NoQA
@@ -65,6 +65,9 @@ class TestSourceCode(unittest.TestCase):
 
     def test_cqa_ruff(self):
         root_path = find_root_path()
+        config_path = root_path / "pyproject.toml"
+        if not config_path.exists():
+            raise unittest.SkipTest("could not locate pyproject.toml file")
 
         try:
             import ruff  # type: ignore  # NoQA
