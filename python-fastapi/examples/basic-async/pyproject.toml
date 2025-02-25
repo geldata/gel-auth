@@ -1,0 +1,12 @@
+[project]
+name = "gel-auth-fastapi-basic-async"
+version = "0.1.0"
+description = "Basic async example project"
+readme = "README.md"
+requires-python = ">=3.13"
+dependencies = [
+    "gel-auth-fastapi",
+]
+
+[tool.uv.sources]
+gel-auth-fastapi = { path = "../../" }
