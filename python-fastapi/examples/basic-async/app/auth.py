@@ -50,7 +50,7 @@ async def register(
         case core_email_password.SignUpVerificationRequiredResponse():
             return "/signin?incomplete=verification_required"
         case core_email_password.SignUpFailedResponse():
-            logger.error(f"Sign up failed: {sign_up_response}")
+            logger.error("sign up failed: %s", sign_up_response)
             return "/signin?error=failure"
         case _:
             raise Exception("Invalid sign up response")
@@ -72,7 +72,7 @@ async def authenticate(
         case core_email_password.SignInVerificationRequiredResponse():
             return "/signin?incomplete=verification_required"
         case core_email_password.SignInFailedResponse():
-            logger.error(f"Sign in failed: {sign_in_response}")
+            logger.error("sign in failed: %s", sign_in_response)
             return "/signin?error=failure"
         case _:
             raise Exception("Invalid sign in response")
@@ -95,7 +95,7 @@ async def verify(
         case core_email_password.EmailVerificationMissingProofResponse():
             return "/signin?incomplete=verify"
         case core_email_password.EmailVerificationFailedResponse():
-            logger.error(f"Verify email failed: {verify_response}")
+            logger.error("verify email failed: %s", verify_response)
             return "/signin?error=failure"
         case _:
             raise Exception("Invalid verify email response")
@@ -116,7 +116,9 @@ async def send_password_reset(
         case core_email_password.SendPasswordResetEmailCompleteResponse():
             return "/signin?incomplete=password_reset_sent"
         case core_email_password.SendPasswordResetEmailFailedResponse():
-            logger.error(f"Send password reset failed: {send_password_reset_response}")
+            logger.error(
+                "send password reset failed: %s", send_password_reset_response
+            )
             return "/signin?error=failure"
         case _:
             raise Exception("Invalid send password reset response")
@@ -139,7 +141,7 @@ async def reset_password(
         case core_email_password.PasswordResetMissingProofResponse():
             return "/signin?incomplete=reset_password"
         case core_email_password.PasswordResetFailedResponse():
-            logger.error(f"Reset password failed: {reset_password_response}")
+            logger.error("reset password failed: %s", reset_password_response)
             return "/signin?error=failure"
         case _:
             raise Exception("Invalid reset password response")

@@ -16,7 +16,7 @@ logger = logging.getLogger("fast_jelly")
 logger.setLevel(logging.DEBUG)
 logger.addHandler(stream_handler)
 
-auth_core_logger = logging.getLogger("gel_auth_core")
+auth_core_logger = logging.getLogger("gel.auth")
 auth_core_logger.setLevel(logging.DEBUG)
 auth_core_logger.addHandler(stream_handler)
 

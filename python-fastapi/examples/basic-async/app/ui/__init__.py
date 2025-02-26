@@ -32,12 +32,12 @@ def render(request: Request) -> RendererFunction:
 
     async def exec(component: Component) -> HTMLResponse:
         auth_token = request.cookies.get("gel_auth_token")
-        logger.info(f"auth_token: {auth_token}")
+        logger.info("auth_token: %s", auth_token)
         user: User | None = None
         if auth_token:
             auth_client = client.with_globals({"ext::auth::client_token": auth_token})  # type: ignore
             user_result = await get_current_user_qry.get_current_user(auth_client)  # type: ignore
-            logger.info(f"user_result: {user_result}")
+            logger.info("user_result: %s", user_result)
             if user_result:
                 user = User(
                     created_at=user_result.created_at,

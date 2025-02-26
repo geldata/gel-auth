@@ -148,7 +148,7 @@ htmy = [
 [[package]]
 name = "gel"
 version = "3.0.0"
-source = { git = "https://github.com/geldata/gel-python?branch=auth#cb7f9b38cd2be96c084cec277eefa73a4c8fa392" }
+source = { git = "https://github.com/geldata/gel-python?branch=auth#7e4853f038cf5bc04128a9bc6b888291905519b5" }
 dependencies = [
     { name = "certifi", marker = "sys_platform == 'win32'" },
 ]
