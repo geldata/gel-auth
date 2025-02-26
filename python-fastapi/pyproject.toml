@@ -28,6 +28,7 @@ dev = [
 
 [tool.mypy]
 exclude = [
+    "^.venv",
     "^.eggs",
     "^.github",
     "^.vscode",
@@ -35,9 +36,11 @@ exclude = [
     "^dist",
     "^docs",
     "^target",
+    "^examples",
 ]
 files = "."
 python_version = "3.9"
+ignore_missing_imports = true
 
 [tool.ruff]
 line-length = 80

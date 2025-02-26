@@ -57,11 +57,10 @@ class EmailPassword:
             sign_up_body.email, sign_up_body.password
         )
 
-        match sign_up_response:
-            case email_password.SignUpCompleteResponse():
-                _set_auth_cookie(sign_up_response.token_data.auth_token, response)
-            case _:
-                _set_verifier_cookie(sign_up_response.verifier, response)
+        if isinstance(sign_up_response, email_password.SignUpCompleteResponse):
+            _set_auth_cookie(sign_up_response.token_data.auth_token, response)
+        else:
+            _set_verifier_cookie(sign_up_response.verifier, response)
 
         return sign_up_response
 
@@ -78,11 +77,10 @@ class EmailPassword:
             sign_in_body.email, sign_in_body.password
         )
 
-        match sign_in_response:
-            case email_password.SignInCompleteResponse():
-                _set_auth_cookie(sign_in_response.token_data.auth_token, response)
-            case _:
-                _set_verifier_cookie(sign_in_response.verifier, response)
+        if isinstance(sign_in_response, email_password.SignInCompleteResponse):
+            _set_auth_cookie(sign_in_response.token_data.auth_token, response)
+        else:
+            _set_verifier_cookie(sign_in_response.verifier, response)
 
         return sign_in_response
 
@@ -169,10 +167,12 @@ def _set_verifier_cookie(verifier: str, response: Response) -> None:
 
 async def _get_request_body(request: Request) -> dict:
     content_type = request.headers.get("content-type")
-    match content_type:
-        case "application/x-www-form-urlencoded" | "multipart/form-data":
-            return dict(await request.form())
-        case "application/json":
-            return await request.json()
-        case _:
-            raise ValueError("Unsupported content type")
+    if content_type in (
+            "application/x-www-form-urlencoded",
+            "multipart/form-data",
+    ):
+        return dict(await request.form())
+    elif content_type == "application/json":
+        return await request.json()
+    else:
+        raise ValueError("Unsupported content type")
