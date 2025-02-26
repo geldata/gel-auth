@@ -77,7 +77,9 @@ async def post_user(user: RequestData, session: SessionDep) -> User:
 
 
 @router.put("/users")
-async def put_user(user: RequestData, current_name: str, session: SessionDep) -> User:
+async def put_user(
+    user: RequestData, current_name: str, session: SessionDep
+) -> User:
     client = session.client
     try:
         updated_user = await update_user_qry.update_user(

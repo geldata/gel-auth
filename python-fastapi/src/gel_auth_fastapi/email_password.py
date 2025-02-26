@@ -41,7 +41,9 @@ class EmailPassword:
 
     async def make_core(self) -> email_password.EmailPassword:
         return await email_password.make(
-            client=self.client, verify_url=self.verify_url, reset_url=self.reset_url
+            client=self.client,
+            verify_url=self.verify_url,
+            reset_url=self.reset_url,
         )
 
     async def handle_sign_up(
@@ -92,7 +94,9 @@ class EmailPassword:
         verifier: Annotated[Optional[str], Cookie(alias="gel_verifier")] = None,
     ) -> email_password.EmailVerificationResponse:
         email_password_client = await self.make_core()
-        return await email_password_client.verify_email(verification_token, verifier)
+        return await email_password_client.verify_email(
+            verification_token, verifier
+        )
 
     async def handle_send_password_reset(
         self,
@@ -100,8 +104,10 @@ class EmailPassword:
         response: Response,
     ) -> email_password.SendPasswordResetEmailResponse:
         email_password_client = await self.make_core()
-        send_password_reset_body = email_password.SendPasswordResetBody.model_validate(
-            await _get_request_body(request)
+        send_password_reset_body = (
+            email_password.SendPasswordResetBody.model_validate(
+                await _get_request_body(request)
+            )
         )
         send_password_reset_response = (
             await email_password_client.send_password_reset_email(
@@ -132,14 +138,18 @@ class EmailPassword:
 def make_email_password(
     client: gel.AsyncIOClient, *, verify_url: str, reset_url: str
 ) -> EmailPassword:
-    return EmailPassword(client=client, verify_url=verify_url, reset_url=reset_url)
+    return EmailPassword(
+        client=client, verify_url=verify_url, reset_url=reset_url
+    )
 
 
 def _get_unchecked_exp(token: str) -> Optional[datetime.datetime]:
     jwt_payload = jwt.decode(token, options={"verify_signature": False})
     if "exp" not in jwt_payload:
         return None
-    return datetime.datetime.fromtimestamp(jwt_payload["exp"], tz=datetime.timezone.utc)
+    return datetime.datetime.fromtimestamp(
+        jwt_payload["exp"], tz=datetime.timezone.utc
+    )
 
 
 def _set_auth_cookie(token: str, response: Response) -> None:
@@ -168,8 +178,8 @@ def _set_verifier_cookie(verifier: str, response: Response) -> None:
 async def _get_request_body(request: Request) -> dict:
     content_type = request.headers.get("content-type")
     if content_type in (
-            "application/x-www-form-urlencoded",
-            "multipart/form-data",
+        "application/x-www-form-urlencoded",
+        "multipart/form-data",
     ):
         return dict(await request.form())
     elif content_type == "application/json":

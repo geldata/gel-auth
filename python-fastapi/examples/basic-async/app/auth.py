@@ -33,10 +33,13 @@ email_password = make_email_password(
 async def register(
     email: Annotated[str, Form()],
     sign_up_response: Annotated[
-        core_email_password.SignUpResponse, Depends(email_password.handle_sign_up)
+        core_email_password.SignUpResponse,
+        Depends(email_password.handle_sign_up),
     ],
 ):
-    if not isinstance(sign_up_response, core_email_password.SignUpFailedResponse):
+    if not isinstance(
+        sign_up_response, core_email_password.SignUpFailedResponse
+    ):
         user = await create_user_qry.create_user(
             client,
             name=email,
@@ -63,7 +66,8 @@ async def register(
 )
 async def authenticate(
     sign_in_response: Annotated[
-        core_email_password.SignInResponse, Depends(email_password.handle_sign_in)
+        core_email_password.SignInResponse,
+        Depends(email_password.handle_sign_in),
     ],
 ):
     match sign_in_response:

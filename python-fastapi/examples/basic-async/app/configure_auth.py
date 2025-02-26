@@ -8,7 +8,9 @@ from gel import create_async_client
 async def main():
     client = create_async_client()
 
-    auth_signing_key = os.getenv("GEL_AUTH_SIGNING_KEY", secrets.token_urlsafe(32))
+    auth_signing_key = os.getenv(
+        "GEL_AUTH_SIGNING_KEY", secrets.token_urlsafe(32)
+    )
 
     await client.execute(
         f"""
