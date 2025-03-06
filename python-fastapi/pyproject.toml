@@ -7,11 +7,18 @@ authors = [
     { name = "Gel Data Inc.", email = "hello@geldata.com" }
 ]
 requires-python = ">=3.9"
-dependencies = []
+dependencies = [
+    "fastapi>=0.115",
+    "gel[auth]",
+    "pyjwt>=2.10",
+]
 
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
+
+[tool.uv.sources]
+gel = { git = "https://github.com/geldata/gel-python", branch = "auth" }
 
 [dependency-groups]
 dev = [
@@ -21,6 +28,7 @@ dev = [
 
 [tool.mypy]
 exclude = [
+    "^.venv",
     "^.eggs",
     "^.github",
     "^.vscode",
@@ -28,9 +36,11 @@ exclude = [
     "^dist",
     "^docs",
     "^target",
+    "^examples",
 ]
 files = "."
 python_version = "3.9"
+ignore_missing_imports = true
 
 [tool.ruff]
 line-length = 80
