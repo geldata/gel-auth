@@ -5,14 +5,14 @@ from http import HTTPStatus
 
 import gel
 from fastapi import APIRouter, HTTPException
-from gel_auth_fastapi import SessionDep
 from pydantic import BaseModel
 
+from . import dependencies as deps
 from .queries import (
     create_event_async_edgeql as create_event_qry,
 )
 
-router = APIRouter()
+router = APIRouter(tags=["API"])
 
 
 class RequestData(BaseModel):
@@ -24,9 +24,8 @@ class RequestData(BaseModel):
 
 @router.post("/events", status_code=HTTPStatus.CREATED)
 async def post_event(
-    event: RequestData, session: SessionDep
+    event: RequestData, client: deps.GelClient
 ) -> create_event_qry.CreateEventResult:
-    client = session.client
     try:
         created_event = await create_event_qry.create_event(
             client,

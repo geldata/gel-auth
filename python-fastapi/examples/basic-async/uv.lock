@@ -148,7 +148,7 @@ htmy = [
 [[package]]
 name = "gel"
 version = "3.0.0"
-source = { git = "https://github.com/geldata/gel-python?branch=auth#7e4853f038cf5bc04128a9bc6b888291905519b5" }
+source = { git = "https://github.com/geldata/gel-python?branch=auth#9c007bef3ca8571c65e9c82abbdededa9217433f" }
 dependencies = [
     { name = "certifi", marker = "sys_platform == 'win32'" },
 ]
@@ -156,7 +156,6 @@ dependencies = [
 [package.optional-dependencies]
 auth = [
     { name = "httpx" },
-    { name = "pydantic" },
 ]
 
 [[package]]

@@ -17,51 +17,47 @@
 #
 
 from __future__ import annotations
-from typing import Annotated, Optional, Union
+from typing import Optional, TypeVar, Union
+
+import uuid
 
 import gel
-from fastapi import Cookie, Depends
-
-ClientDep = Annotated[gel.AsyncIOClient, Depends(gel.create_async_client)]
+from fastapi import security
 
 
-class BaseSession:
-    client: gel.AsyncIOClient
-
-    def __init__(self, *, client: gel.AsyncIOClient):
-        self.client = client
-
-    async def is_authenticated(self) -> bool:
-        return await self.client.query_required_single(  # type: ignore
-            "select exists ext::auth::ClientTokenIdentity"
+class PKCEVerifier(security.APIKeyCookie):
+    def __init__(self, name: str = "gel_verifier"):
+        super().__init__(
+            name=name,
+            description="The cookie as the PKCE verifier",
+            auto_error=False,
         )
 
 
-class AuthenticatedSession(BaseSession):
-    auth_token: str
-
-    def __init__(self, *, client: gel.AsyncIOClient, auth_token: str):
-        self.auth_token = auth_token
-        self.client = client.with_globals(  # type: ignore
-            {"ext::auth::ClientTokenIdentity": auth_token}
+class AuthToken(security.APIKeyCookie):
+    def __init__(
+        self, name: str = "gel_auth_token", *, auto_error: bool = False
+    ):
+        super().__init__(
+            name=name,
+            description="The cookie as the authentication token",
+            auto_error=auto_error,
         )
 
 
-class AnonymousSession(BaseSession):
-    pass
+C = TypeVar("C", bound=Union[gel.AsyncIOClient, gel.Client])
 
 
-Session = Union[AuthenticatedSession, AnonymousSession]
-
-
-def extract_session(
-    auth_token: Annotated[Optional[str], Cookie(alias="gel_auth_token")],
-    client: ClientDep,
-) -> Session:
+def get_client_with_auth_token(client: C, *, auth_token: Optional[str]) -> C:
     if auth_token:
-        return AuthenticatedSession(client=client, auth_token=auth_token)
+        return client.with_globals({"ext::auth::client_token": auth_token})
     else:
-        return AnonymousSession(client=client)
+        return client
 
 
-SessionDep = Annotated[Session, Depends(extract_session)]
+async def get_identity_async(client: gel.AsyncIOClient) -> Optional[uuid.UUID]:
+    return await client.query_single("select ext::auth::ClientTokenIdentity.id")
+
+
+def get_identity(client: gel.Client) -> Optional[uuid.UUID]:
+    return client.query_single("select ext::auth::ClientTokenIdentity.id")

@@ -17,172 +17,159 @@
 #
 
 from __future__ import annotations
-from typing import Optional, Annotated
+from typing import Optional
 
 import datetime
 
-import gel
 import jwt
-from fastapi import Response, Request, Query, Cookie
+import pydantic
+import fastapi
 from gel.auth import email_password
+
+
+class SignUpBody(pydantic.BaseModel):
+    email: str
+    password: str
+
+
+class SignInBody(pydantic.BaseModel):
+    email: str
+    password: str
+
+
+class VerifyBody(pydantic.BaseModel):
+    verification_token: str
+
+
+class SendPasswordResetBody(pydantic.BaseModel):
+    email: str
+
+
+class PasswordResetBody(pydantic.BaseModel):
+    reset_token: str
+    password: str
 
 
 class EmailPassword:
     def __init__(
         self,
+        client: email_password.AsyncEmailPassword,
         *,
-        client: gel.AsyncIOClient,
-        verify_url: str,
-        reset_url: str,
+        secure_cookie: bool = True,
+        verifier_cookie_name: str = "gel_verifier",
+        auth_cookie_name: str = "gel_auth_token",
     ):
-        self.client = client
-        self.verify_url = verify_url
-        self.reset_url = reset_url
-
-    async def make_core(self) -> email_password.EmailPassword:
-        return await email_password.make(
-            client=self.client,
-            verify_url=self.verify_url,
-            reset_url=self.reset_url,
-        )
+        self._client = client
+        self._secure_cookie = secure_cookie
+        self._verifier_cookie_name = verifier_cookie_name
+        self._auth_cookie_name = auth_cookie_name
 
     async def handle_sign_up(
         self,
-        request: Request,
-        response: Response,
+        sign_up_body: SignUpBody,
+        *,
+        verify_url: str,
+        response: fastapi.Response,
     ) -> email_password.SignUpResponse:
-        email_password_client = await self.make_core()
-        sign_up_body = email_password.SignUpBody.model_validate(
-            await _get_request_body(request)
-        )
-        sign_up_response = await email_password_client.sign_up(
-            sign_up_body.email, sign_up_body.password
+        sign_up_response = await self._client.sign_up(
+            sign_up_body.email, sign_up_body.password, verify_url=verify_url
         )
 
         if isinstance(sign_up_response, email_password.SignUpCompleteResponse):
-            _set_auth_cookie(sign_up_response.token_data.auth_token, response)
+            self._set_auth_cookie(
+                sign_up_response.token_data.auth_token, response
+            )
         else:
-            _set_verifier_cookie(sign_up_response.verifier, response)
+            self._set_verifier_cookie(sign_up_response.verifier, response)
 
         return sign_up_response
 
     async def handle_sign_in(
         self,
-        request: Request,
-        response: Response,
+        sign_in_body: SignInBody,
+        *,
+        response: fastapi.Response,
     ) -> email_password.SignInResponse:
-        email_password_client = await self.make_core()
-        sign_in_body = email_password.SignInBody.model_validate(
-            await _get_request_body(request)
-        )
-        sign_in_response = await email_password_client.sign_in(
+        sign_in_response = await self._client.sign_in(
             sign_in_body.email, sign_in_body.password
         )
 
         if isinstance(sign_in_response, email_password.SignInCompleteResponse):
-            _set_auth_cookie(sign_in_response.token_data.auth_token, response)
+            self._set_auth_cookie(
+                sign_in_response.token_data.auth_token, response
+            )
         else:
-            _set_verifier_cookie(sign_in_response.verifier, response)
+            self._set_verifier_cookie(sign_in_response.verifier, response)
 
         return sign_in_response
 
     async def handle_verify_email(
         self,
-        request: Request,
-        response: Response,
-        verification_token: Annotated[str, Query()],
-        verifier: Annotated[Optional[str], Cookie(alias="gel_verifier")] = None,
+        verify_body: VerifyBody,
+        *,
+        verifier: Optional[str] = None,
     ) -> email_password.EmailVerificationResponse:
-        email_password_client = await self.make_core()
-        return await email_password_client.verify_email(
-            verification_token, verifier
+        return await self._client.verify_email(
+            verify_body.verification_token, verifier
         )
 
     async def handle_send_password_reset(
         self,
-        request: Request,
-        response: Response,
+        send_password_reset_body: SendPasswordResetBody,
+        *,
+        reset_url: str,
+        response: fastapi.Response,
     ) -> email_password.SendPasswordResetEmailResponse:
-        email_password_client = await self.make_core()
-        send_password_reset_body = (
-            email_password.SendPasswordResetBody.model_validate(
-                await _get_request_body(request)
-            )
-        )
         send_password_reset_response = (
-            await email_password_client.send_password_reset_email(
-                send_password_reset_body.email
+            await self._client.send_password_reset_email(
+                send_password_reset_body.email, reset_url=reset_url
             )
         )
 
-        _set_verifier_cookie(send_password_reset_response.verifier, response)
+        self._set_verifier_cookie(
+            send_password_reset_response.verifier, response
+        )
         return send_password_reset_response
 
     async def handle_reset_password(
         self,
-        request: Request,
-        response: Response,
-        verifier: Annotated[Optional[str], Cookie(alias="gel_verifier")] = None,
+        password_reset_body: PasswordResetBody,
+        *,
+        verifier: Optional[str] = None,
     ) -> email_password.PasswordResetResponse:
-        email_password_client = await self.make_core()
-        password_reset_body = email_password.PasswordResetBody.model_validate(
-            await _get_request_body(request)
-        )
-        return await email_password_client.reset_password(
+        return await self._client.reset_password(
             reset_token=password_reset_body.reset_token,
             verifier=verifier,
             password=password_reset_body.password,
         )
 
+    def _get_unchecked_exp(self, token: str) -> Optional[datetime.datetime]:
+        jwt_payload = jwt.decode(token, options={"verify_signature": False})
+        if "exp" not in jwt_payload:
+            return None
+        return datetime.datetime.fromtimestamp(
+            jwt_payload["exp"], tz=datetime.timezone.utc
+        )
 
-def make_email_password(
-    client: gel.AsyncIOClient, *, verify_url: str, reset_url: str
-) -> EmailPassword:
-    return EmailPassword(
-        client=client, verify_url=verify_url, reset_url=reset_url
-    )
+    def _set_auth_cookie(self, token: str, response: fastapi.Response) -> None:
+        exp = self._get_unchecked_exp(token)
+        response.set_cookie(
+            key=self._auth_cookie_name,
+            value=token,
+            httponly=True,
+            secure=self._secure_cookie,
+            samesite="lax",
+            expires=exp,
+        )
 
-
-def _get_unchecked_exp(token: str) -> Optional[datetime.datetime]:
-    jwt_payload = jwt.decode(token, options={"verify_signature": False})
-    if "exp" not in jwt_payload:
-        return None
-    return datetime.datetime.fromtimestamp(
-        jwt_payload["exp"], tz=datetime.timezone.utc
-    )
-
-
-def _set_auth_cookie(token: str, response: Response) -> None:
-    exp = _get_unchecked_exp(token)
-    response.set_cookie(
-        key="gel_auth_token",
-        value=token,
-        httponly=True,
-        secure=True,
-        samesite="lax",
-        expires=exp,
-    )
-
-
-def _set_verifier_cookie(verifier: str, response: Response) -> None:
-    response.set_cookie(
-        key="gel_verifier",
-        value=verifier,
-        httponly=True,
-        secure=True,
-        samesite="lax",
-        expires=int(datetime.timedelta(days=7).total_seconds()),
-    )
-
-
-async def _get_request_body(request: Request) -> dict:
-    content_type = request.headers.get("content-type")
-    if content_type in (
-        "application/x-www-form-urlencoded",
-        "multipart/form-data",
-    ):
-        return dict(await request.form())
-    elif content_type == "application/json":
-        return await request.json()
-    else:
-        raise ValueError("Unsupported content type")
+    def _set_verifier_cookie(
+        self, verifier: str, response: fastapi.Response
+    ) -> None:
+        response.set_cookie(
+            key=self._verifier_cookie_name,
+            value=verifier,
+            httponly=True,
+            secure=self._secure_cookie,
+            samesite="lax",
+            expires=int(datetime.timedelta(days=7).total_seconds()),
+        )

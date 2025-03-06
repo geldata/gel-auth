@@ -7,43 +7,28 @@ from fastapi import APIRouter, Request, Depends
 from fastapi.responses import HTMLResponse
 from htmy import Context, Component, html, component, HTMY
 
-from ..gel_client import client
-from ..queries import get_current_user_async_edgeql as get_current_user_qry
-from ..users import User
+from app import users
 
 from .components import Heading, head
 
 logger = logging.getLogger("fast_jelly")
-router = APIRouter()
+router = APIRouter(tags=["UI"])
 
 
-def make_auth_context(request: Request, user: User | None) -> Context:
+def make_auth_context(request: Request, user: users.User | None) -> Context:
     return {
         Request: request,
-        User: user,
+        users.User: user,
     }
 
 
 RendererFunction = Callable[[Component], Awaitable[HTMLResponse]]
 
 
-def render(request: Request) -> RendererFunction:
+def render(request: Request, user: users.CurrentUser) -> RendererFunction:
     """FastAPI dependency that returns an HTMY renderer function."""
 
     async def exec(component: Component) -> HTMLResponse:
-        auth_token = request.cookies.get("gel_auth_token")
-        logger.info("auth_token: %s", auth_token)
-        user: User | None = None
-        if auth_token:
-            auth_client = client.with_globals({"ext::auth::client_token": auth_token})  # type: ignore
-            user_result = await get_current_user_qry.get_current_user(auth_client)  # type: ignore
-            logger.info("user_result: %s", user_result)
-            if user_result:
-                user = User(
-                    created_at=user_result.created_at,
-                    id=user_result.id,
-                    name=user_result.name,
-                )
         htmy = HTMY(make_auth_context(request, user))
         return HTMLResponse(await htmy.render(component))
 
@@ -53,9 +38,23 @@ def render(request: Request) -> RendererFunction:
 DependsRenderFunc = Annotated[RendererFunction, Depends(render)]
 
 
+def render_without_user(request: Request) -> RendererFunction:
+
+    async def exec(component: Component) -> HTMLResponse:
+        htmy = HTMY(make_auth_context(request, None))
+        return HTMLResponse(await htmy.render(component))
+
+    return exec
+
+
+DependsRenderWithoutUserFunc = Annotated[
+    RendererFunction, Depends(render_without_user)
+]
+
+
 @component
 def IndexPage(_: Any, context: Context) -> Component:
-    user: User | None = context[User]
+    user: users.User | None = context[users.User]
     if user is None:
         return html.meta(http_equiv="refresh", content="0; url=/signin")
     return (
@@ -85,7 +84,9 @@ def SignInPage(_: Any, context: Context) -> Component:
     incomplete_message = request.query_params.get("incomplete", "")
     match incomplete_message:
         case "verification_required":
-            incomplete_message = "Please verify your email address before signing in."
+            incomplete_message = (
+                "Please verify your email address before signing in."
+            )
         case "verify":
             incomplete_message = (
                 "Successfully verified email! Please sign in to continue."
@@ -292,15 +293,15 @@ async def index(render: DependsRenderFunc):
 
 
 @router.get("/signin")
-async def signin(render: DependsRenderFunc):
+async def signin(render: DependsRenderWithoutUserFunc):
     return await render(SignInPage(None))
 
 
 @router.get("/ui/forgot-password")
-async def forgot_password_form(render: DependsRenderFunc):
+async def forgot_password_form(render: DependsRenderWithoutUserFunc):
     return await render(ForgotPasswordForm(None))
 
 
 @router.get("/ui/reset-password")
-async def reset_password_page(render: DependsRenderFunc):
+async def reset_password_page(render: DependsRenderWithoutUserFunc):
     return await render(ResetPasswordPage(None))
